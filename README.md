@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BMI Check
 
-## Getting Started
+Next.js + Tailwind + Drizzle ORM + PostgreSQL — dev ทั้งหมดใน Docker
 
-First, run the development server:
+## เริ่มใช้งาน
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- เว็บ: http://localhost:3100 (แก้โค้ดแล้ว hot reload อัตโนมัติ)
+- Postgres: `localhost:5434` (user/pass/db = `bmi`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+ตอน container `web` เริ่ม จะรัน `drizzle-kit push` เพื่อสร้าง/อัปเดตตารางจาก `src/db/schema.ts` ให้อัตโนมัติ
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## คำแนะนำจาก AI (Google Gemini)
 
-## Learn More
+ใส่ API key ในไฟล์ `.env` แล้วรีสตาร์ต:
 
-To learn more about Next.js, take a look at the following resources:
+```
+GEMINI_API_KEY=ใส่คีย์ของคุณ
+# GEMINI_MODEL=gemini-flash-lite-latest   (ไม่บังคับ, ค่าเริ่มต้น)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose restart web
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+หลังคำนวณ BMI กดปุ่ม "ขอคำแนะนำจาก AI" ระบบจะส่งข้อมูลเป็น JSON ไปที่ Gemini และขอคำตอบกลับเป็น JSON ตาม schema ใน `src/lib/advice.ts`
 
-## Deploy on Vercel
+## คำสั่งที่ใช้บ่อย
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+docker compose exec web npm run db:push     # sync schema หลังแก้ src/db/schema.ts
+docker compose exec web npm i <package>     # ติดตั้ง package ใน container
+docker compose down                         # หยุด (ข้อมูลยังอยู่)
+docker compose down -v                      # หยุดและลบข้อมูล DB
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**แก้ CSS แล้วหน้าเว็บไม่เปลี่ยน?** ล้าง cache ของ Next.js ในคอนเทนเนอร์แล้วรีสตาร์ต:
+
+```bash
+docker compose exec web sh -c 'rm -rf .next/*' && docker compose restart web
+```
+
+## โครงสร้าง
+
+- `src/db/schema.ts` — ตาราง `bmi_records`
+- `src/app/actions.ts` — server action คำนวณ BMI + บันทึกลง DB
+- `src/app/bmi-form.tsx` — ฟอร์มและการ์ดผลลัพธ์
+- `src/lib/bmi.ts` — สูตร BMI และเกณฑ์ (WHO Asia-Pacific)
+- `src/lib/advice.ts` — schema และ prompt ที่ส่งให้ Gemini
+- `src/app/advice-actions.ts` — server action เรียก Gemini API
+- `src/app/advice-panel.tsx` — ปุ่มขอคำแนะนำและการ์ดแสดงผล
